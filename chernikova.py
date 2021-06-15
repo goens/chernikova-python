@@ -150,12 +150,16 @@ def row_lin_combination_satisfying_constraint(row1 : np.ndarray, p1 : np.int64,
 
     return res
 
+#is this wrong? should it use the row vectors for the rays?
+def compute_projections(tableau : np.ndarray, column : int, n : int) -> np.ndarray:
+    constraint = tableau[:,column]
+    projections = np.matmul(np.atleast_2d(constraint) , tableau[:,0:n+2])
+    return projections
 
 #This computes the new tableau without removing irredundant rays
 def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndarray:
-    constraint = tableau[:,column]
-    ineq = np.isclose(constraint[0],1)
-    projections = np.matmul(np.atleast_2d(constraint) , tableau[:,0:n+2])
+    ineq = np.isclose(tableau[0,column],1)
+    projections = compute_projections(tableau,column,n)
     assert projections.shape == (1,n+2)
     #print(f"projections {projections}")
 
@@ -215,8 +219,51 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
                 new_tableau_rows.append(new_row)
     return np.array(new_tableau_rows)
 
-def chernikova_reduction(tableau : np.ndarray) -> np.ndarray:
-    pass
+def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
+    constraints = tableau[:,n+2:tableau.shape[1]]
+    #is this wrong?
+    projections = np.matmul(constraints.T , tableau[:,0:n+2])
+    #for projections: rows = constraints, columns = rays
+
+    print(tableau)
+    #ignore first (mu)
+    ray_directionalities = tableau[1:,0]
+
+    #add 1 because of ignored (mu)
+    unidirectional_rays = np.nonzero(ray_directionalities)[0]+1 
+    print(f"unidirectional rays: {unidirectional_rays}")
+
+    to_remove = set()
+    for ray1 in unidirectional_rays:
+        for ray2 in unidirectional_rays:
+            if ray1 == ray2:
+                continue
+            remove = True
+            for constraint in range(n+2,tableau.shape[1]):
+                c_idx = constraint - n - 2
+                print(f"constraint {constraint}, r1 {ray1}, r2 {ray2}")
+                two_projections = set([projections[c_idx,ray1],
+                                       projections[c_idx,ray2]])
+                #print(f" two projections: {two_projections}")
+                if 0 in two_projections:
+                    two_projections.remove(0)
+                    if len(two_projections) == 0 or two_projections.pop() > 0:
+                        #print(f"{ray1} and {ray2} are irredundant")
+                        remove = False
+                        break
+
+            #not sure about this constraint (ray2 not in to_remove)
+            if remove and ray2 not in to_remove:
+                to_remove.add(ray1)
+
+    irredundant = list(range(tableau.shape[0]))
+    print(f" irredundant start: {irredundant}")
+    for redundant in to_remove:
+        irredundant.remove(redundant)
+    print(f" irredundant: {irredundant}")
+    new_tableau = tableau[np.ix_(range(tableau.shape[0]),irredundant)]
+    return new_tableau
+
 
 def chernikova_reduction_leverge(tableau : np.ndarray) -> np.ndarray:
     pass

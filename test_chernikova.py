@@ -96,6 +96,7 @@ def test_chernikova_iteration():
                             [ 0,  0,  0,  1,  0,  0,  1],
                             [ 0,  1,  1,  0,  0,  1,  0]]
                            ))
+    print(chernikova_reduction(step_example_9,cone.n))
 
 
 if __name__ == "__main__":
