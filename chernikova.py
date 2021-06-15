@@ -130,16 +130,20 @@ def row_lin_combination_satisfying_constraint(row1 : np.ndarray, p1 : np.int64,
             row2 = -np.sign(p1*p2) * row2
             #make unidirectional
             row2[0] = 1
+            #print(f"made row2 unidirectional: {row2}")
         elif np.isclose(row2[0],1):
             #same as above, but reversed
             row1 = -np.sign(p1*p2) * row1
             row1[0] = 1
+            #print(f"made row1 unidirectional: {row1}")
         #both are bidirectional
         else:
             row1 = -np.sign(p1*p2)*row1
-            #row2 = row2
+            #print(f"both bidirectional: {row1}")
+            #row2 = row2 #not needed (noop)
 
     res = row1 * -p2 + row2 * p1
+    #print(f"linear combination:  {-p2} * {row1} + {p1} * {row2}")
     if res.dtype == np.int64:
         gcd = np.gcd.reduce(res)
         res = res / gcd
@@ -153,38 +157,50 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
     ineq = np.isclose(constraint[0],1)
     projections = np.matmul(np.atleast_2d(constraint) , tableau[:,0:n+2])
     assert projections.shape == (1,n+2)
+    #print(f"projections {projections}")
 
-    #conserved rays
-    conserved_rays = []
+    #keep first row (mu)
+    conserved_rays = [0]
     if ineq:
-        for i in range(n+2):
+        #keep first row (mu)
+        for i in range(1,n+2):
             #H^1 : projections are non-negative
-            if projections[0,i] >= 0:
+            #or ray is bidirectional
+            if projections[0,i] >= 0 or np.isclose(tableau[0,i],0):
                 conserved_rays.append(i)
     else:
-        for i in range(n+2):
+        #keep first row (mu)
+        for i in range(1,n+2):
             #H^0: projections are null
             if np.isclose(projections[0,i],0):
                 conserved_rays.append(i)
 
+    #print(f"conserved rays {conserved_rays}")
     new_tableau_rows = []
     for idx in conserved_rays:
-        row = tableau[idx,:]
+        row = tableau[idx,:].copy()
 
         #if bidirectional, change
         if np.isclose(row[0],0):
             if projections[0,idx] > 0:
                 #make unidirectional
                 row[0] = 1
+                #print(f"making undirectional: {row}")
+
             elif projections[0,idx] < 0:
                 #oposite unidirectional
-                row[0] = 1
                 row = -row
+                row[0] = 1
+                #print(f"oposite undirectional: {row}")
             #projection == 0 is kept bidirectional
+            #else:
+            #    print(f"kept bidirectional: {row}")
         new_tableau_rows.append(row)
+    #print(f"conserved rays: {new_tableau_rows}")
 
     #new rays
-    for i in range(n+2):
+    #don't count first row (mu)
+    for i in range(1,n+2):
         #don't iterate twice over pairs
         for j in range(i+1,n+2):
             #each ray belongs to a different side of the hyperplane
@@ -193,7 +209,8 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
             p2 = projections[0,j]
             row1 = tableau[i,:]
             row2 = tableau[j,:]
-            if p1*p2 < 0 or np.isclose(row[0],0) or np.isclose(row[0],0):
+            if p1*p2 < 0 or ((np.isclose(row[0],0) or np.isclose(row[0],0)) and not np.isclose(p1*p2,0)):
+                #print(f"combining {(i,j)}")
                 new_row = row_lin_combination_satisfying_constraint(row1,p1,row2,p2)
                 new_tableau_rows.append(new_row)
     return np.array(new_tableau_rows)

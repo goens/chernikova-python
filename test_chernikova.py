@@ -87,9 +87,10 @@ def test_chernikova_iteration():
     cone = Cone(example_9())
     tableau = cone.to_initial_chernikova_tableau()
     step_example_9 = chernikova_iteration(tableau,4,cone.n)
-    assert np.allclose(chernikova_tableau,
+    #print(step_example_9)
+    assert np.allclose(step_example_9,
                        np.array(
-                           [[ 1,  0,  0,  0,  1,  1,  1]
+                           [[ 1,  0,  0,  0,  1,  1,  1],
                             [ 1,  1,  0,  0,  1,  1,  0],
                             [ 1,  0, -1,  0,  1,  0,  0],
                             [ 0,  0,  0,  1,  0,  0,  1],
