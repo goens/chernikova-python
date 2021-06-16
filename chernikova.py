@@ -9,6 +9,8 @@
 import numpy as np
 from typing import List
 
+debug = print
+
 # a x >= b
 class Constraint():
     def __init__(self,coeff : np.ndarray, inhomogeneity : np.float64 = 0,
@@ -132,38 +134,37 @@ def row_lin_combination_satisfying_constraint(row1 : np.ndarray, p1 : np.int64,
             row2 = -np.sign(p1*p2) * row2
             #make unidirectional
             row2[0] = 1
-            #print(f"made row2 unidirectional: {row2}")
+            #debug(f"made row2 unidirectional: {row2}")
         elif np.isclose(row2[0],1):
             #same as above, but reversed
             row1 = -np.sign(p1*p2) * row1
             row1[0] = 1
-            #print(f"made row1 unidirectional: {row1}")
+            #debug(f"made row1 unidirectional: {row1}")
         #both are bidirectional
         else:
             row1 = -np.sign(p1*p2)*row1
-            #print(f"both bidirectional: {row1}")
+            #debug(f"both bidirectional: {row1}")
             #row2 = row2 #not needed (noop)
 
     res = row1 * -p2 + row2 * p1
-    #print(f"linear combination:  {-p2} * {row1} + {p1} * {row2}")
+    #debug(f"linear combination:  {-p2} * {row1} + {p1} * {row2}")
     if res.dtype == np.int64:
         gcd = np.gcd.reduce(res)
         res = res / gcd
 
     return res
 
-#is this wrong? should it use the row vectors for the rays?
-def compute_projections(tableau : np.ndarray, column : int, n : int) -> np.ndarray:
-    constraint = tableau[:,column]
-    projections = np.matmul(np.atleast_2d(constraint) , tableau[:,0:n+2])
-    return projections
-
 #This computes the new tableau without removing irredundant rays
 def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndarray:
     ineq = np.isclose(tableau[0,column],1)
-    projections = compute_projections(tableau,column,n)
-    assert projections.shape == (1,n+2)
-    #print(f"projections {projections}")
+    # From the end of Section 8:
+    # "The coefficients of the matrix A.T represent the projection of the
+    # corresponding oriented row ray vector (the positive part if it is a
+    # bidirectional ray) on the corresponding oriented column hyperplane
+    #(the positive part if it is bidirectional (or an equation))."
+    projections = tableau[:,column]
+    assert projections.shape == (n+2,)
+    #debug(f"projections {projections}")
 
     #keep first row (mu)
     conserved_rays = [0]
@@ -172,37 +173,37 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
         for i in range(1,n+2):
             #H^1 : projections are non-negative
             #or ray is bidirectional
-            if projections[0,i] >= 0 or np.isclose(tableau[0,i],0):
+            if projections[i] >= 0 or np.isclose(tableau[0,i],0):
                 conserved_rays.append(i)
     else:
         #keep first row (mu)
         for i in range(1,n+2):
             #H^0: projections are null
-            if np.isclose(projections[0,i],0):
+            if np.isclose(projections[i],0):
                 conserved_rays.append(i)
 
-    #print(f"conserved rays {conserved_rays}")
+    #debug(f"conserved rays {conserved_rays}")
     new_tableau_rows = []
     for idx in conserved_rays:
         row = tableau[idx,:].copy()
 
         #if bidirectional, change
         if np.isclose(row[0],0):
-            if projections[0,idx] > 0:
+            if projections[idx] > 0:
                 #make unidirectional
                 row[0] = 1
-                #print(f"making undirectional: {row}")
+                #debug(f"making undirectional: {row}")
 
-            elif projections[0,idx] < 0:
+            elif projections[idx] < 0:
                 #oposite unidirectional
                 row = -row
                 row[0] = 1
-                #print(f"oposite undirectional: {row}")
+                #debug(f"oposite undirectional: {row}")
             #projection == 0 is kept bidirectional
             #else:
-            #    print(f"kept bidirectional: {row}")
+            #    debug(f"kept bidirectional: {row}")
         new_tableau_rows.append(row)
-    #print(f"conserved rays: {new_tableau_rows}")
+    #debug(f"conserved rays: {new_tableau_rows}")
 
     #new rays
     #don't count first row (mu)
@@ -211,29 +212,28 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
         for j in range(i+1,n+2):
             #each ray belongs to a different side of the hyperplane
 
-            p1 = projections[0,i]
-            p2 = projections[0,j]
+            p1 = projections[i]
+            p2 = projections[j]
             row1 = tableau[i,:]
             row2 = tableau[j,:]
             if p1*p2 < 0 or ((np.isclose(row[0],0) or np.isclose(row[0],0)) and not np.isclose(p1*p2,0)):
-                #print(f"combining {(i,j)}")
+                #debug(f"combining {(i,j)}")
                 new_row = row_lin_combination_satisfying_constraint(row1,p1,row2,p2)
                 new_tableau_rows.append(new_row)
     return np.array(new_tableau_rows)
 
 def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
-    constraints = tableau[:,n+2:tableau.shape[1]]
-    #is this wrong?
-    projections = np.matmul(constraints.T , tableau[:,0:n+2])
-    #for projections: rows = constraints, columns = rays
+    #See the end of Section 8 (quoted above)
+    #for projections: rows = rays, columns = constraints
+    projections = tableau[:,n+2:tableau.shape[1]]
 
-    print(tableau)
+    debug(tableau)
     #ignore first (mu)
     ray_directionalities = tableau[1:,0]
 
     #add 1 because of ignored (mu)
     unidirectional_rays = np.nonzero(ray_directionalities)[0]+1 
-    print(f"unidirectional rays: {unidirectional_rays}")
+    debug(f"unidirectional rays: {unidirectional_rays}")
 
     to_remove = set()
     for ray1 in unidirectional_rays:
@@ -243,14 +243,14 @@ def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
             remove = True
             for constraint in range(n+2,tableau.shape[1]):
                 c_idx = constraint - n - 2
-                print(f"constraint {constraint}, r1 {ray1}, r2 {ray2}")
-                two_projections = set([projections[c_idx,ray1],
-                                       projections[c_idx,ray2]])
-                #print(f" two projections: {two_projections}")
+                debug(f"constraint {constraint}, r1 {ray1}, r2 {ray2}")
+                two_projections = set([projections[ray1,c_idx],
+                                       projections[ray2,c_idx]])
+                debug(f" two projections: {two_projections}")
                 if 0 in two_projections:
                     two_projections.remove(0)
                     if len(two_projections) == 0 or two_projections.pop() > 0:
-                        #print(f"{ray1} and {ray2} are irredundant")
+                        debug(f"{ray1} and {ray2} are irredundant")
                         remove = False
                         break
 
@@ -259,11 +259,11 @@ def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
                 to_remove.add(ray1)
 
     irredundant = list(range(tableau.shape[0]))
-    print(f" irredundant start: {irredundant}")
+    debug(f" irredundant start: {irredundant}")
     for redundant in to_remove:
         irredundant.remove(redundant)
-    print(f" irredundant: {irredundant}")
-    new_tableau = tableau[np.ix_(range(tableau.shape[0]),irredundant)]
+    debug(f" irredundant: {irredundant}")
+    new_tableau = tableau[np.ix_(irredundant,range(tableau.shape[1]))]
     return new_tableau
 
 
