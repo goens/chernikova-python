@@ -12,7 +12,7 @@ from typing import List
 def noop(*args):
     pass
 #debug = noop
-debug = print
+#debug = print
 
 # a x >= b
 class Constraint():
@@ -148,12 +148,12 @@ class Cone():
     #cone.
     def generators(self) -> List[Generator]:
         tableau = self.to_initial_chernikova_tableau()
-        debug(f"initial tableau: \n {tableau} \n =============== \n")
+        #debug(f"initial tableau: \n {tableau} \n =============== \n")
         constraints = range(self.n+2,tableau.shape[1])
         for constraint in constraints:
             tableau = chernikova_iteration(tableau, constraint, self.n)
             tableau = chernikova_reduction(tableau, self.n)
-            debug(f" after constraint {constraint}: {decode_rays(tableau[1:,:self.n+2])} \n")
+            #debug(f" after constraint {constraint}: {decode_rays(tableau[1:,:self.n+2])} \n")
         #don't include first row (mu)
         rays = tableau[1:,:self.n+2]
         return decode_rays(rays)
@@ -287,7 +287,7 @@ def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
     #for projections: rows = rays, columns = constraints
     projections = tableau[:,n+2:tableau.shape[1]]
 
-    debug(tableau)
+    #debug(tableau)
     #ignore first (mu)
     ray_directionalities = tableau[1:,0]
 
@@ -318,7 +318,7 @@ def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
             if remove and ray2 not in to_remove:
                 to_remove.add(ray1)
 
-    debug(f"removing rows: {to_remove}")
+    #debug(f"removing rows: {to_remove}")
     irredundant = list(range(tableau.shape[0]))
     #debug(f" irredundant start: {irredundant}")
     for redundant in to_remove:

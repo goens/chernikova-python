@@ -102,7 +102,8 @@ def test_chernikova_iteration():
 def test_chernikova_full():
     cone = Cone(example_9())
     result = cone.generators()
-    print(result)
+    #TODO: write a test that ensures a) generators indeed generate polytope, and b) they are irredundant
+    #print(result)
 
 
 if __name__ == "__main__":
