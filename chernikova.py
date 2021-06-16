@@ -1,3 +1,5 @@
+# Copyright 2021 Andrés Goens <andres.goens@tu-dresden.de>
+
 #This implements Chernikova's algorithm as described in:
 #Felipe Fernandez, Patrice Quinton. Extension of Chernikova’s algorithm for solving general mixed linear programming problems. [Research Report] RR-0943, 1988
 

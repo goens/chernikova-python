@@ -1,3 +1,4 @@
+#Copyright 2021 Andrés Goens <andres.goens@barkhauseninstitut.org>
 #import pytest
 from chernikova import *
 
