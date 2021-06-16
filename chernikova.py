@@ -9,7 +9,10 @@
 import numpy as np
 from typing import List
 
-debug = print
+def noop(*args):
+    pass
+debug = noop
+#debug = print
 
 # a x >= b
 class Constraint():
@@ -27,7 +30,7 @@ class Constraint():
     def is_equality(self) -> bool:
         return self.eq
 
-    def __str__(self):
+    def __repr__(self):
         res = ""
         for i in range(self.n):
             if self.a[i] != 0:
@@ -44,18 +47,42 @@ class Constraint():
 
 #This class is used to return rays,
 #not internally for Chernikova's algorithm.
-class Ray():
+class Generator():
 
-    def is_extremal(self):
-        pass #needed? (p.5)
+    def __init__(self,vector : np.ndarray, vertex = False, bidirectional = False):
+        self.value = vector #.copy()
+        self.vertex = vertex
+        self.bidirectional = bidirectional
 
-    #Ray
-    def is_unidirectional(self) -> bool:
-        return self.unidirectional
+    def is_unidirectional_ray(self) -> bool:
+        if vertex:
+            return False
+        else:
+            return not self.bidirectional
 
     #Line
-    def is_bidirectional(self) -> bool:
-        return not self.unidirectional
+    def is_bidirectional_ray(self) -> bool:
+        if vertex:
+            return False
+        else:
+            return self.bidirectional
+
+    def is_vertex(self) -> bool:
+        return self.vertex
+
+    def get_value(self) -> np.ndarray:
+        return self.vertex.copy()
+
+    def __repr__(self):
+        if self.vertex:
+            res = "Vertex("
+        elif self.bidirectional:
+            res = "Line("
+        else:
+            res = "Ray("
+        res += str(self.value)
+        res += ")"
+        return res
 
 class Cone():
     def __init__(self, constraints : List[Constraint]):
@@ -119,9 +146,30 @@ class Cone():
     #Returns a set of irredundant extremal rays
     #or associated minimal proper faces generating the
     #cone.
-    def generators() -> List[Ray]:
-        pass
+    def generators(self) -> List[Generator]:
+        tableau = self.to_initial_chernikova_tableau()
+        constraints = range(self.n+2,tableau.shape[1])
+        for constraint in constraints:
+            tableau = chernikova_iteration(tableau, constraint, self.n)
+            tableau = chernikova_reduction(tableau, self.n)
+        rays = tableau[:,:self.n+2]
+        return decode_rays(rays)
 
+def S(y : int, tableau : np.ndarray, n : int) -> List[int]:
+    projections = tableau[y,1:]
+    return np.argwhere(projections == 0)
+
+def decode_rays(rays_tableau : np.ndarray) -> List[Generator]:
+    rays = []
+    debug(f"decoding ray tableau: \n {rays_tableau}")
+    for ray_idx in range(rays_tableau.shape[0]):
+        bidirectional = np.isclose(rays_tableau[ray_idx,0],0)
+        ray = dehomogenize_ray(rays_tableau[ray_idx,1:])
+        if bidirectional:
+            assert not ray.is_vertex()
+            ray.bidirectional = True
+        rays.append(ray)
+    return rays
 
 def row_lin_combination_satisfying_constraint(row1 : np.ndarray, p1 : np.int64,
                                               row2 : np.ndarray, p2 : np.int64) -> np.ndarray:
@@ -163,8 +211,7 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
     # bidirectional ray) on the corresponding oriented column hyperplane
     #(the positive part if it is bidirectional (or an equation))."
     projections = tableau[:,column]
-    assert projections.shape == (n+2,)
-    #debug(f"projections {projections}")
+    debug(f"projections {projections}")
 
     #keep first row (mu)
     conserved_rays = [0]
@@ -217,12 +264,13 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
             row1 = tableau[i,:]
             row2 = tableau[j,:]
             if p1*p2 < 0 or ((np.isclose(row[0],0) or np.isclose(row[0],0)) and not np.isclose(p1*p2,0)):
+                #should add adjacency check!
                 #debug(f"combining {(i,j)}")
                 new_row = row_lin_combination_satisfying_constraint(row1,p1,row2,p2)
                 new_tableau_rows.append(new_row)
     return np.array(new_tableau_rows)
 
-def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
+def chernikova_reduction(tableau : np.ndarray, n : int, leverge : bool = True) -> np.ndarray:
     #See the end of Section 8 (quoted above)
     #for projections: rows = rays, columns = constraints
     projections = tableau[:,n+2:tableau.shape[1]]
@@ -232,11 +280,16 @@ def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
     ray_directionalities = tableau[1:,0]
 
     #add 1 because of ignored (mu)
-    unidirectional_rays = np.nonzero(ray_directionalities)[0]+1 
+    unidirectional_rays = np.nonzero(ray_directionalities)[0]+1
     debug(f"unidirectional rays: {unidirectional_rays}")
 
     to_remove = set()
     for ray1 in unidirectional_rays:
+        if leverge:
+            S_set = S(ray1,tableau,n)
+            if len(S_set) <= n - 3:
+                to_remove.add(ray1)
+                continue
         for ray2 in unidirectional_rays:
             if ray1 == ray2:
                 continue
@@ -267,8 +320,6 @@ def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
     return new_tableau
 
 
-def chernikova_reduction_leverge(tableau : np.ndarray) -> np.ndarray:
-    pass
 
 def homogenize_system(A : np.ndarray, b : np.ndarray):
     assert A.shape[0] == b.shape[0]
@@ -282,14 +333,17 @@ def homogenize_system(A : np.ndarray, b : np.ndarray):
 
     return np.hstack((A_mat, np.atleast_2d(-b).T))
 
-def dehomogenize_ray(y : np.ndarray):
-    n = y.shape[1]
-    if np.isclose(y[0,n],0):
-        return Ray(y[0,0:(n-1)])
+def dehomogenize_ray(y : np.ndarray) -> Generator:
+    n = len(y)
+    vec = y[0:(n-1)]
+    last = y[-1]
+    debug(f"dehomogenizing {vec} ({last})")
+    if np.isclose(last,0):
+        return Generator(vec)
     else:
-        return Vertex(y)
+        return Generator(1/last * vec,vertex = True)
 
-def to_bidirectional_coordinates(rays : List[Ray]) -> List[Ray]:
+def to_bidirectional_coordinates(rays : List[Generator]) -> List[Generator]:
     result = []
     for ray in rays:
         if ray.is_unidirectional():
@@ -319,10 +373,3 @@ def Qgreater():
 def Qless():
     pass
 
-#this can probably be vectorized (using something like scipy.linalg.null_space?)
-def S(y : np.ndarray, A : Cone) -> List[Constraint]:
-    result = []
-    for constraint in A.constraints:
-        if constraint.is_saturated_by_y(y):
-            result.append(y)
-    return result

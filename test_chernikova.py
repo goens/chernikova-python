@@ -97,7 +97,12 @@ def test_chernikova_iteration():
                             [ 0,  0,  0,  1,  0,  0,  1],
                             [ 0,  1,  1,  0,  0,  1,  0]]
                            ))
-    print(chernikova_reduction(step_example_9,cone.n))
+    #print(chernikova_reduction(step_example_9,cone.n))
+
+def test_chernikova_full():
+    cone = Cone(example_9())
+    result = cone.generators()
+    print(result)
 
 
 if __name__ == "__main__":
@@ -107,3 +112,4 @@ if __name__ == "__main__":
     test_uniform()
     test_chernikova_initial_tableau()
     test_chernikova_iteration()
+    test_chernikova_full()
