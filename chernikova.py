@@ -350,34 +350,3 @@ def dehomogenize_ray(y : np.ndarray) -> Generator:
         return Generator(vec)
     else:
         return Generator(1/last * vec,vertex = True)
-
-def to_bidirectional_coordinates(rays : List[Generator]) -> List[Generator]:
-    result = []
-    for ray in rays:
-        if ray.is_unidirectional():
-            r = Ray(np.hstack((0,ray.as_ndarray())))
-            result.append(r)
-        else:
-            r = Ray(np.hstack((1,ray.as_ndarray())))
-            result.append(r)
-    return result
-
-### Unneccessary?
-
-
-# Hyperplanes represent equations:
-# H = {x | ax = 0}
-class Hyperplane():
-    pass
-
-
-
-def Qequals():
-    pass
-
-def Qgreater():
-    pass
-
-def Qless():
-    pass
-
