@@ -160,7 +160,8 @@ class Cone():
 
 def S(y : np.ndarray, n : int) -> List[int]:
     projections = y[n+2:]
-    return np.argwhere(projections == 0)
+    #this gets where they are indeed zero
+    return np.nonzero(projections == 0)[0]
 
 def decode_rays(rays_tableau : np.ndarray) -> List[Generator]:
     rays = []
@@ -283,8 +284,6 @@ def chernikova_iteration(tableau : np.ndarray, column : int,
     return np.array(new_tableau_rows)
 
 def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
-    #See the end of Section 8 (quoted above)
-    #for projections: rows = rays, columns = constraints
     projections = tableau[:,n+2:tableau.shape[1]]
 
     #debug(tableau)
@@ -296,26 +295,17 @@ def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
     #debug(f"unidirectional rays: {unidirectional_rays}")
 
     to_remove = set()
+    S_sets = {}
+    for i in unidirectional_rays:
+        S_sets[i] = frozenset(S(projections[i,:],-2))
     for ray1 in unidirectional_rays:
         for ray2 in unidirectional_rays:
             if ray1 == ray2:
                 continue
-            remove = True
-            for constraint in range(n+2,tableau.shape[1]):
-                c_idx = constraint - n - 2
-                #debug(f"constraint {constraint}, r1 {ray1}, r2 {ray2}")
-                two_projections = set([projections[ray1,c_idx],
-                                       projections[ray2,c_idx]])
-                #debug(f" two projections: {two_projections}")
-                if 0 in two_projections:
-                    two_projections.remove(0)
-                    if len(two_projections) == 0 or two_projections.pop() > 0:
-                        #debug(f"{ray1} and {ray2} are irredundant")
-                        remove = False
-                        break
-
-            #not sure about this constraint (ray2 not in to_remove)
-            if remove and ray2 not in to_remove:
+            #S(ray1) is a proper subset of S(ray2) => ray1 is redundant
+            #See Proposition 2.4 in Leverge
+            #debug(f"S_1 : {S_sets[ray1]}, S_2 {S_sets[ray2]}")
+            if S_sets[ray1] < S_sets[ray2]:
                 to_remove.add(ray1)
 
     #debug(f"removing rows: {to_remove}")
