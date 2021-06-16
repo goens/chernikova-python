@@ -158,8 +158,8 @@ class Cone():
         rays = tableau[1:,:self.n+2]
         return decode_rays(rays)
 
-def S(y : int, tableau : np.ndarray, n : int) -> List[int]:
-    projections = tableau[y,1:]
+def S(y : np.ndarray, n : int) -> List[int]:
+    projections = y[n+2:]
     return np.argwhere(projections == 0)
 
 def decode_rays(rays_tableau : np.ndarray) -> List[Generator]:
@@ -185,7 +185,7 @@ def row_lin_combination_satisfying_constraint(row1 : np.ndarray, p1 : np.int64,
             row2 = -np.sign(p1*p2) * row2
             #make unidirectional
             row2[0] = 1
-            ##debug(f"made row2 unidirectional: {row2}")
+            #debug(f"made row2 unidirectional: {row2}")
         elif np.isclose(row2[0],1):
             #same as above, but reversed
             row1 = -np.sign(p1*p2) * row1
@@ -198,7 +198,7 @@ def row_lin_combination_satisfying_constraint(row1 : np.ndarray, p1 : np.int64,
             #row2 = row2 #not needed (noop)
 
     res = row1 * -p2 + row2 * p1
-    debug(f"linear combination:  {-p2} * {row1} + {p1} * {row2} = {res}")
+    #debug(f"linear combination:  {-p2} * {row1} + {p1} * {row2} = {res}")
     if res.dtype == np.int64:
         gcd = np.gcd.reduce(res)
         res = res / gcd
@@ -206,7 +206,8 @@ def row_lin_combination_satisfying_constraint(row1 : np.ndarray, p1 : np.int64,
     return res
 
 #This computes the new tableau without removing irredundant rays
-def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndarray:
+def chernikova_iteration(tableau : np.ndarray, column : int,
+                         n : int, leverge: bool = True) -> np.ndarray:
     ineq = np.isclose(tableau[0,column],1)
     # From the end of Section 8:
     # "The coefficients of the matrix A.T represent the projection of the
@@ -235,7 +236,7 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
             if np.isclose(projections[i],0):
                 conserved_rays.append(i)
 
-    debug(f"conserved row indices: {conserved_rays}")
+    #debug(f"conserved row indices: {conserved_rays}")
     new_tableau_rows = []
     for idx in conserved_rays:
         row = tableau[idx,:].copy()
@@ -256,7 +257,7 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
             #else:
             #    #debug(f"kept bidirectional: {row}")
         new_tableau_rows.append(row)
-    debug(f"conserved rays (including directionality): \n {new_tableau_rows}")
+    #debug(f"conserved rays (including directionality): \n {new_tableau_rows}")
     #TODO: do I have to consider vertices separately here?
 
     #new rays
@@ -271,18 +272,22 @@ def chernikova_iteration(tableau : np.ndarray, column : int, n : int) -> np.ndar
             row1 = tableau[i,:]
             row2 = tableau[j,:]
             if p1*p2 < 0 or ((np.isclose(row1[0],0) or np.isclose(row2[0],0)) and not np.isclose(p1*p2,0)):
-                #should add adjacency check!
-                #debug(f"combining {(i,j)}")
                 new_row = row_lin_combination_satisfying_constraint(row1,p1,row2,p2)
+                if leverge:
+                    S_set = S(new_row,n)
+                    #debug(f"S set: {S_set}")
+                    if len(S_set) <= n - 3:
+                        #debug(f"leverge: skipping {new_row}")
+                        continue
                 new_tableau_rows.append(new_row)
     return np.array(new_tableau_rows)
 
-def chernikova_reduction(tableau : np.ndarray, n : int, leverge : bool = True) -> np.ndarray:
+def chernikova_reduction(tableau : np.ndarray, n : int) -> np.ndarray:
     #See the end of Section 8 (quoted above)
     #for projections: rows = rays, columns = constraints
     projections = tableau[:,n+2:tableau.shape[1]]
 
-    #debug(tableau)
+    debug(tableau)
     #ignore first (mu)
     ray_directionalities = tableau[1:,0]
 
@@ -292,11 +297,6 @@ def chernikova_reduction(tableau : np.ndarray, n : int, leverge : bool = True) -
 
     to_remove = set()
     for ray1 in unidirectional_rays:
-        if leverge:
-            S_set = S(ray1,tableau,n)
-            if len(S_set) <= n - 3:
-                to_remove.add(ray1)
-                continue
         for ray2 in unidirectional_rays:
             if ray1 == ray2:
                 continue
@@ -318,6 +318,7 @@ def chernikova_reduction(tableau : np.ndarray, n : int, leverge : bool = True) -
             if remove and ray2 not in to_remove:
                 to_remove.add(ray1)
 
+    debug(f"removing rows: {to_remove}")
     irredundant = list(range(tableau.shape[0]))
     #debug(f" irredundant start: {irredundant}")
     for redundant in to_remove:
