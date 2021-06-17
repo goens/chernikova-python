@@ -37,7 +37,17 @@ def isl_BasicSet_to_Generator_list(basicset : islpy._isl.BasicSet) -> List[Gener
     cone = isl_ConstraintList_to_Cone(basicset.get_constraints())
     return cone.generators()
 
+cone_gemm_ex = isl_ConstraintList_to_Cone(gemm_ex.get_constraints())
+gens_gemm_ex = isl_BasicSet_to_Generator_list(gemm_ex)
+for gen in gens_gemm_ex:
+    assert cone_gemm_ex.check_generator(gen) or print(f"Error: generator {gen} seems to be wrong")
 
-print(isl_BasicSet_to_Generator_list(gemm_ex))
-print(isl_BasicSet_to_Generator_list(nussinov_ex_mid))
-print(isl_BasicSet_to_Generator_list(nussinov_ex_hard))
+cone_nussinov_ex_mid = isl_ConstraintList_to_Cone(nussinov_ex_mid.get_constraints())
+gens_nussinov_ex_mid = isl_BasicSet_to_Generator_list(nussinov_ex_mid)
+for gen in gens_nussinov_ex_mid:
+    assert cone_nussinov_ex_mid.check_generator(gen) or print(f"Error: generator {gen} seems to be wrong")
+
+cone_nussinov_ex_hard = isl_ConstraintList_to_Cone(nussinov_ex_hard.get_constraints())
+gens_nussinov_ex_hard = isl_BasicSet_to_Generator_list(nussinov_ex_hard)
+for gen in gens_nussinov_ex_hard:
+    assert cone_nussinov_ex_hard.check_generator(gen) or print(f"Error: generator {gen} seems to be wrong")

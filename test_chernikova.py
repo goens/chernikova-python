@@ -103,6 +103,8 @@ def test_chernikova_iteration():
 def test_chernikova_full():
     cone = Cone(example_9())
     result = cone.generators()
+    for gen in result:
+        assert cone.check_generator(gen) or or print(f"Error: generator {gen} seems to be wrong")
     #TODO: write a test that ensures a) generators indeed generate polytope, and b) they are irredundant
     #print(result)
 

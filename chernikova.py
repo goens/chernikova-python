@@ -12,7 +12,7 @@ from typing import List
 def noop(*args):
     pass
 #debug = noop
-#debug = print
+debug = print
 
 # a x >= b
 class Constraint():
@@ -56,14 +56,14 @@ class Generator():
         self.bidirectional = bidirectional
 
     def is_unidirectional_ray(self) -> bool:
-        if vertex:
+        if self.vertex:
             return False
         else:
             return not self.bidirectional
 
     #Line
     def is_bidirectional_ray(self) -> bool:
-        if vertex:
+        if self.vertex:
             return False
         else:
             return self.bidirectional
@@ -72,7 +72,7 @@ class Generator():
         return self.vertex
 
     def get_value(self) -> np.ndarray:
-        return self.vertex.copy()
+        return self.value.copy()
 
     def __repr__(self):
         if self.vertex:
@@ -160,6 +160,27 @@ class Cone():
         #don't include first row (mu)
         rays = tableau[1:,:self.n+2]
         return decode_rays(rays)
+
+    def check_generator(self,generator) -> bool:
+        val = generator.get_value()
+        if val.shape[0] != self.n:
+            return False
+        if self.B.shape != (0,):
+            eqs = np.matmul(self.B, np.atleast_2d(val).T)
+        else:
+            eqs = np.array([])
+        if self.D.shape != (0,):
+            ineqs = np.matmul(self.D, np.atleast_2d(val).T)
+        else:
+            ineqs = np.array([])
+
+        #debug(f" eqs : {eqs} \n ineqs: {ineqs}")
+        if generator.is_bidirectional_ray():
+            total_nonzero = len(np.nonzero(eqs)[0]) + len(np.nonzero(ineqs)[0])
+            return total_nonzero == 0
+        else:
+            total_nonneg = len(np.nonzero(eqs < 0)[0]) + len(np.nonzero(ineqs < 0)[0])
+            return total_nonneg == 0
 
 def S(y : np.ndarray, n : int) -> List[int]:
     projections = y[n+2:]
