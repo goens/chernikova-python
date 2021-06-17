@@ -12,7 +12,7 @@ from typing import List
 def noop(*args):
     pass
 #debug = noop
-debug = print
+#debug = print
 
 # a x >= b
 class Constraint():
@@ -24,9 +24,6 @@ class Constraint():
         self.b = inhomogeneity
         self.eq = equality
 
-    def is_saturated_by_y(self,y : np.ndarray) -> bool:
-        return np.allclose(a*y,np.zeroes(self.n))
-
     def is_equality(self) -> bool:
         return self.eq
 
@@ -34,9 +31,11 @@ class Constraint():
         res = ""
         for i in range(self.n):
             if self.a[i] != 0:
-                if len(res) != 0:
+                if len(res) != 0 and self.a[i] != -1:
                     res += "+ "
-                if self.a[i] != 1:
+                elif self.a[i] == -1:
+                    res += "- "
+                if np.abs(self.a[i]) != 1:
                     res += f"{self.a[i]} * "
                 res += f"x_{i+1} "
         if self.eq:
@@ -251,7 +250,7 @@ def chernikova_iteration(tableau : np.ndarray, column : int,
             #H^1 : projections are non-negative
             #or ray is bidirectional
             #debug(f" (eqn) proj: {projections[i]}, tab[0,i]: {tableau[0,i]}")
-            if projections[i] >= 0 or np.isclose(tableau[0,i],0):
+            if projections[i] >= 0 or np.isclose(tableau[i,0],0):
                 conserved_rays.append(i)
     #constraint is equation (corresp. to hyper-plane)
     else:
