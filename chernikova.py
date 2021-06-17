@@ -45,6 +45,7 @@ class Constraint():
             res += f">= {self.b}"
         return res
 
+
 #This class is used to return rays,
 #not internally for Chernikova's algorithm.
 class Generator():
@@ -90,6 +91,8 @@ class Cone():
             self.n = 0
         else:
             self.n = constraints[0].n
+        for c in constraints:
+            assert c.n == self.n
         eqs = []
         ineqs = []
         b_eqs = []
@@ -263,9 +266,9 @@ def chernikova_iteration(tableau : np.ndarray, column : int,
 
     #new rays
     #don't count first row (mu)
-    for i in range(1,n+2):
+    for i in range(1,tableau.shape[0]):
         #don't iterate twice over pairs
-        for j in range(i+1,n+2):
+        for j in range(i+1,tableau.shape[0]):
             #each ray belongs to a different side of the hyperplane
 
             p1 = projections[i]

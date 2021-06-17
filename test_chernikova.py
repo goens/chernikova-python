@@ -16,6 +16,7 @@ def example_9():
     ineq2 = Constraint(np.array([1,0]))
     return [ineq1,ineq2]
 
+
 def test_constraints():
     constraints = example_8()
     for c in constraints:
@@ -114,3 +115,4 @@ if __name__ == "__main__":
     test_chernikova_initial_tableau()
     test_chernikova_iteration()
     test_chernikova_full()
+
